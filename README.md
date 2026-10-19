@@ -36,11 +36,12 @@ EzyCommuntiyAutomation/
 ├── src/
 │   └── test/
 │       └── java/
-│           └── EzyCommunityTest.java       # Core TestNG Test Suite & Locators
-├── target/                                 # Build outputs & Surefire reports
-├── .gitignore                              # Git exclusion rules
-├── Pom.xml                                 # Maven dependencies & plugins
-└── README.md                               # Project documentation
+│           ├── EzyCommunityTest.java           # Core Login Suite & Logout Locators
+│           └── EzyCommunitySearchTest.java     # Critical Security & Search Attack Suite
+├── target/                                     # Build outputs & Surefire reports
+├── .gitignore                                  # Git exclusion rules
+├── Pom.xml                                     # Maven dependencies & plugins
+└── README.md                                   # Project documentation
 ```
 
 ---
@@ -119,16 +120,20 @@ Run with environment variables inline (PowerShell):
 $env:TEST_EMAIL="testerone@imti.online"; $env:TEST_PASSWORD="#Ab123456"; mvn test
 ```
 
-Run a specific test case or class:
+Run a specific test suite:
 ```powershell
+# Run Authentication Test Suite (16 scenarios)
 mvn test -Dtest=EzyCommunityTest
+
+# Run Critical Search Security & Break Test Suite (16 scenarios)
+mvn test -Dtest=EzyCommunitySearchTest
 ```
 
 ---
 
-## 🧪 Test Case Coverage
+## 🧪 Test Case Coverage: Authentication Suite (`EzyCommunityTest`)
 
-The test suite executes 16 automated scenarios using TestNG `@DataProvider`:
+The authentication test suite executes 16 automated scenarios using TestNG `@DataProvider`:
 
 | ID | Test Scenario | Input Data | Expected Result |
 | :--- | :--- | :--- | :---: |
@@ -148,6 +153,31 @@ The test suite executes 16 automated scenarios using TestNG `@DataProvider`:
 | **TC-14** | Valid email with incorrect password | `validEmail`, `"IncorrectPassword123!"` | ❌ Fail |
 | **TC-15** | Spaces-only credentials | `"   "`, `"   "` | ❌ Fail |
 | **TC-16** | Valid email and password (Standard) | `validEmail`, `validPassword` | ✅ Success |
+
+---
+
+## 🛡️ Critical Community Search Attack & Break Test Suite (`EzyCommunitySearchTest`)
+
+Automated end-to-end flow: **Launch App ➔ Auto-Login ➔ Navigate to Community Search ➔ Execute Security & Stress Attacks**.
+
+| ID | Attack Vector / Scenario | Injected Payload | Expected Security & Stability Outcome | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **TC-SEC-01** | Baseline Search Sanity | `test` | Returns valid search results without error | ✅ PASSED |
+| **TC-SEC-02** | SQLi Auth Bypass Injection | `' OR '1'='1` | Parameterized safely; no data leak or syntax error | ✅ PASSED |
+| **TC-SEC-03** | SQLi Stacked Statement Drop | `'; DROP TABLE posts; --` | Parameterized safely; no query truncation | ✅ PASSED |
+| **TC-SEC-04** | SQLi Union-Based Extraction | `' UNION SELECT null, username, password FROM users --` | Rejected cleanly; no database reflection | ✅ PASSED |
+| **TC-SEC-05** | Reflected XSS Script Tag | `<script>alert('XSS')</script>` | Sanitized / rendered as raw text without execution | ✅ PASSED |
+| **TC-SEC-06** | XSS Event Handler Injection | `<img src=x onerror=alert(1)>` | Escaped safely; DOM event handling prevented | ✅ PASSED |
+| **TC-SEC-07** | HTML Iframe / JS Protocol | `<iframe src="javascript:alert(1)"></iframe>` | Escaped safely; iframe embedding blocked | ✅ PASSED |
+| **TC-SEC-08** | Template Injection (SSTI) | `{{7*7}} ${7*7} <%= 7*7 %>` | Treated as literal text; no expression evaluation | ✅ PASSED |
+| **TC-SEC-09** | Massive Buffer Stress (500+ Chars) | `500+ character repeating payload` | Memory safe; no ANR or buffer overflow | ✅ PASSED |
+| **TC-SEC-10** | Special Symbol & Punctuation Bomb | `!@#$%^&*()_+~|}{[]:;?><,./'"` | Regex parser safe; no unhandled pattern error | ✅ PASSED |
+| **TC-SEC-11** | Emojis, Unicode & RTL Characters | `🔥🚀💻 ﷽ \u202Ereversed\u202C` | UTF-8 / Bidirectional glyphs render without crash | ✅ PASSED |
+| **TC-SEC-12** | Null Byte Poisoning Attempt | `search\u0000admin` | Null byte handled safely; no internal corruption | ✅ PASSED |
+| **TC-SEC-13** | Whitespace Flooding | `   \t   \n   \r   ` | Gracefully treated as empty; no crash | ✅ PASSED |
+| **TC-SEC-14** | Non-Existent String (Zero Results) | `__xyz_random_nonexistent_token_99999__` | Displays friendly "No results for..." message | ✅ PASSED |
+| **TC-SEC-15** | Rapid Debounce Hammering | Rapid sequential queries | App remains responsive; handles race conditions | ✅ PASSED |
+| **TC-SEC-16** | Clear Button Functionality | `TemporaryAttackPayload` ➔ Tap Clear (X) | Search input resets cleanly to initial state | ✅ PASSED |
 
 ---
 
