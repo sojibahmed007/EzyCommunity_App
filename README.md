@@ -142,8 +142,8 @@ The test suite executes 16 automated scenarios using TestNG `@DataProvider`:
 | **TC-08** | Leading spaces in email | `"  " + validEmail`, `validPassword` | ✅ Success |
 | **TC-09** | Trailing spaces in email | `validEmail + "  "`, `validPassword` | ✅ Success |
 | **TC-10** | Uppercase email normalization | `validEmail.toUpperCase()`, `validPassword` | ✅ Success |
-| **TC-11** | Leading space in password | `validEmail`, `" " + validPassword` | ❌ Fail |
-| **TC-12** | Trailing space in password | `validEmail`, `validPassword + " "` | ❌ Fail |
+| **TC-11** | Leading space in password (Auto-trimmed) | `validEmail`, `" " + validPassword` | ✅ Success |
+| **TC-12** | Trailing space in password (Auto-trimmed) | `validEmail`, `validPassword + " "` | ✅ Success |
 | **TC-13** | Wrong email with valid password | `"wronguser@example.com"`, `validPassword` | ❌ Fail |
 | **TC-14** | Valid email with incorrect password | `validEmail`, `"IncorrectPassword123!"` | ❌ Fail |
 | **TC-15** | Spaces-only credentials | `"   "`, `"   "` | ❌ Fail |

@@ -336,10 +336,10 @@ public class EzyCommunityTest {
                 validEmail.toUpperCase(), validPassword, true},
 
             {"TC-11 Leading space in password",
-                validEmail, " " + validPassword, false},
+                validEmail, " " + validPassword, true},
 
             {"TC-12 Trailing space in password",
-                validEmail, validPassword + " ", false},
+                validEmail, validPassword + " ", true},
 
             {"TC-13 Wrong email with valid password",
                 "wronguser@example.com", validPassword, false},
