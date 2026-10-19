@@ -116,7 +116,7 @@ mvn clean test
 
 Run with environment variables inline (PowerShell):
 ```powershell
-$env:TEST_EMAIL="testera@imti.online"; $env:TEST_PASSWORD="#Ab123456"; mvn test
+$env:TEST_EMAIL="testerone@imti.online"; $env:TEST_PASSWORD="#Ab123456"; mvn test
 ```
 
 Run a specific test case or class:
@@ -142,8 +142,8 @@ The test suite executes 16 automated scenarios using TestNG `@DataProvider`:
 | **TC-08** | Leading spaces in email | `"  " + validEmail`, `validPassword` | ✅ Success |
 | **TC-09** | Trailing spaces in email | `validEmail + "  "`, `validPassword` | ✅ Success |
 | **TC-10** | Uppercase email normalization | `validEmail.toUpperCase()`, `validPassword` | ✅ Success |
-| **TC-11** | Leading space in password (Auto-trimmed) | `validEmail`, `" " + validPassword` | ✅ Success |
-| **TC-12** | Trailing space in password (Auto-trimmed) | `validEmail`, `validPassword + " "` | ✅ Success |
+| **TC-11** | Leading space in password (Auto-trimmed by app) | `validEmail`, `" " + validPassword` | ✅ Success |
+| **TC-12** | Trailing space in password (Auto-trimmed by app) | `validEmail`, `validPassword + " "` | ✅ Success |
 | **TC-13** | Wrong email with valid password | `"wronguser@example.com"`, `validPassword` | ❌ Fail |
 | **TC-14** | Valid email with incorrect password | `validEmail`, `"IncorrectPassword123!"` | ❌ Fail |
 | **TC-15** | Spaces-only credentials | `"   "`, `"   "` | ❌ Fail |
@@ -169,10 +169,18 @@ In Flutter-based UI, logging out requires navigating through a drawer menu follo
 ```
 
 ### Locator Strategy:
+- **Profile Avatar (Open Drawer):**
+  ```java
+  private final By profileAvatar = By.xpath(
+      "//android.view.View[@content-desc='SQA Team']/preceding-sibling::*[@clickable='true'][1]" +
+      " | //android.view.View[@content-desc='SQA Team']/preceding-sibling::*[1]" +
+      " | //android.view.View[@content-desc='SQA Team']/preceding-sibling::android.widget.ImageView[1]"
+  );
+  ```
 - **Menu Logout Item (Step 1):**
   ```java
   private final By logoutMenuItem = By.xpath(
-      "//android.widget.ImageView[@content-desc='Log out' or @content-desc='Log Out']"
+      "//*[@content-desc='Log out' or @content-desc='Log Out']"
   );
   ```
 - **Modal Confirmation Button (Step 2):**
