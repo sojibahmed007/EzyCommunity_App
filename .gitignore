@@ -1,0 +1,30 @@
+# Maven build output
+target/
+*.class
+
+# Log files
+*.log
+app-crash-log.txt
+
+# Screenshots & dumps
+*.png
+*.jpg
+*.jpeg
+*.xml.dump
+dump.xml
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
