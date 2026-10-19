@@ -53,6 +53,23 @@ public class EzyCommunityTest {
         "//android.widget.Button[@content-desc='Log Out' or @content-desc='Log out']"
     );
 
+    // Android home screen / launcher app icon
+    private final By appLauncherIcon = By.xpath(
+        "//*[@content-desc='EzyCommunity' or @text='EzyCommunity']"
+    );
+
+    // Login screen checkboxes: Remember me & Terms of Service
+    private final By checkBoxesLocator =
+        By.className("android.widget.CheckBox");
+
+    private final By rememberMeCheckBox = By.xpath(
+        "(//android.widget.CheckBox)[1] | //android.view.View[@content-desc='Remember me']/preceding-sibling::android.widget.CheckBox"
+    );
+
+    private final By termsCheckBox = By.xpath(
+        "(//android.widget.CheckBox)[2] | //*[contains(@content-desc, 'I agree')]/preceding-sibling::android.widget.CheckBox"
+    );
+
     private final By editTextLocator =
         By.className("android.widget.EditText");
 
@@ -105,13 +122,31 @@ public class EzyCommunityTest {
         System.out.println("Appium session started.");
     }
 
+    private void ensureAppRunningAndOpen() {
+        try {
+            driver.activateApp("com.ezycommunity.android");
+        } catch (Exception ignored) {}
+
+        try {
+            List<WebElement> launcherIcons = driver.findElements(appLauncherIcon);
+            if (!launcherIcons.isEmpty() && launcherIcons.get(0).isDisplayed()) {
+                launcherIcons.get(0).click();
+                System.out.println("Clicked EzyCommunity icon on Android launcher.");
+            }
+        } catch (Exception ignored) {}
+    }
+
     @BeforeMethod
     public void prepareLoginScreen() {
 
         try {
-            driver.activateApp("com.ezycommunity.android");
+            ensureAppRunningAndOpen();
 
             Thread.sleep(1000);
+
+            try {
+                driver.hideKeyboard();
+            } catch (Exception ignored) {}
 
             logoutIfLoggedIn();
 
@@ -144,17 +179,16 @@ public class EzyCommunityTest {
 
     private void logoutIfLoggedIn() {
 
-        // Do not attempt logout if already logged out.
-        if (isLoginScreenVisible()) {
+        // Do not attempt logout if already logged out or on login screen.
+        if (isLoginScreenVisible() || isVisible(editTextLocator)) {
             System.out.println("Already on login screen.");
             return;
         }
 
-        // Ensure the authenticated screen is ready.
+        // Only attempt logout if confirmed logged in.
         if (!isLoggedIn()) {
-            System.out.println(
-                "Login state is not confirmed. Checking UI..."
-            );
+            System.out.println("Not logged in. Skipping logout.");
+            return;
         }
 
         // If confirmation modal is already open, click Log Out directly
@@ -217,7 +251,7 @@ public class EzyCommunityTest {
     }
 
     private boolean isLoginScreenVisible() {
-        return isVisible(signInButton);
+        return isVisible(signInButton) || isVisible(editTextLocator);
     }
 
     private boolean isLoggedIn() {
@@ -281,22 +315,80 @@ public class EzyCommunityTest {
                 + fields.size()
         );
 
-        WebElement emailInput = fields.get(0);
-        WebElement passwordInput = fields.get(1);
-
-        emailInput.click();
-        emailInput.clear();
-
-        if (!email.isEmpty()) {
-            emailInput.sendKeys(email);
+        // Fill Email field
+        try {
+            WebElement emailInput = fields.get(0);
+            emailInput.click();
+            emailInput.clear();
+            if (!email.isEmpty()) {
+                emailInput.sendKeys(email);
+            }
+        } catch (StaleElementReferenceException e) {
+            fields = driver.findElements(editTextLocator);
+            WebElement emailInput = fields.get(0);
+            emailInput.click();
+            emailInput.clear();
+            if (!email.isEmpty()) {
+                emailInput.sendKeys(email);
+            }
         }
 
-        passwordInput.click();
-        passwordInput.clear();
-
-        if (!password.isEmpty()) {
-            passwordInput.sendKeys(password);
+        // Re-query fields for password to avoid StaleElementReferenceException
+        fields = driver.findElements(editTextLocator);
+        try {
+            WebElement passwordInput = fields.get(1);
+            passwordInput.click();
+            passwordInput.clear();
+            if (!password.isEmpty()) {
+                passwordInput.sendKeys(password);
+            }
+        } catch (StaleElementReferenceException e) {
+            fields = driver.findElements(editTextLocator);
+            WebElement passwordInput = fields.get(1);
+            passwordInput.click();
+            passwordInput.clear();
+            if (!password.isEmpty()) {
+                passwordInput.sendKeys(password);
+            }
         }
+    }
+
+    private void acceptTermsAndRememberMe() {
+        try {
+            List<WebElement> checkBoxes = driver.findElements(checkBoxesLocator);
+            if (checkBoxes.size() >= 2) {
+                for (WebElement cb : checkBoxes) {
+                    try {
+                        String checked = cb.getAttribute("checked");
+                        boolean isChecked = "true".equalsIgnoreCase(checked) || cb.isSelected();
+                        if (!isChecked) {
+                            cb.click();
+                            System.out.println("Auto-checked checkbox.");
+                        }
+                    } catch (Exception ignored) {}
+                }
+            } else {
+                checkIfUnchecked(rememberMeCheckBox);
+                checkIfUnchecked(termsCheckBox);
+            }
+        } catch (Exception e) {
+            System.out.println("Checkbox handling notice: " + e.getMessage());
+        }
+    }
+
+    private void checkIfUnchecked(By locator) {
+        try {
+            List<WebElement> elements = driver.findElements(locator);
+            if (!elements.isEmpty()) {
+                WebElement cb = elements.get(0);
+                String checked = cb.getAttribute("checked");
+                boolean isChecked = "true".equalsIgnoreCase(checked) || cb.isSelected();
+                if (!isChecked) {
+                    cb.click();
+                    System.out.println("Auto-checked checkbox via locator: " + locator);
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     @DataProvider(name = "loginCases")
@@ -365,26 +457,57 @@ public class EzyCommunityTest {
 
         enterCredentials(email, password);
 
-        // Hide the keyboard if open.
+        // Hide the keyboard so checkboxes are visible and interactable.
         try {
             driver.hideKeyboard();
         } catch (Exception ignored) {
             // Keyboard may already be hidden.
         }
 
+        // Wait for UI to stabilize after keyboard dismissal (prevents checkbox reset).
+        try { Thread.sleep(700); } catch (InterruptedException ignored) {}
+
+        // Ensure "Remember me" and "I agree to Terms" checkboxes are checked.
+        acceptTermsAndRememberMe();
+
+        // Small wait for checkbox state to register before tapping Sign In.
+        try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+
+        // Re-verify checkboxes are still checked (UI may have re-rendered).
+        acceptTermsAndRememberMe();
+
         clickElement(signInButton);
 
-        boolean actualSuccess;
+        boolean actualSuccess = false;
 
-        try {
-            wait.until(
-                d -> isLoggedIn() || isLoginScreenVisible()
-            );
-
-            actualSuccess = isLoggedIn();
-
-        } catch (TimeoutException e) {
-            actualSuccess = false;
+        if (expectedSuccess) {
+            // For positive tests: wait up to 30s for any home-screen indicator.
+            try {
+                WebDriverWait longWait = new WebDriverWait(driver, Duration.ofSeconds(30));
+                longWait.until(d ->
+                    isVisible(homeIcon)
+                    || isVisible(teamName)
+                    || isVisible(profileAvatar)
+                );
+                actualSuccess = isVisible(homeIcon)
+                    || isVisible(teamName)
+                    || isVisible(profileAvatar);
+            } catch (TimeoutException e) {
+                actualSuccess = false;
+            }
+        } else {
+            // For negative tests: confirm we are still on the login screen after 5s.
+            try {
+                WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(5));
+                shortWait.until(d ->
+                    isVisible(homeIcon)
+                    || isVisible(teamName)
+                    || isVisible(profileAvatar)
+                );
+                actualSuccess = true; // Home screen appeared — unexpected success
+            } catch (TimeoutException e) {
+                actualSuccess = false; // Stayed on login screen — expected
+            }
         }
 
         System.out.println(
