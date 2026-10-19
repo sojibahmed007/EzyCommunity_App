@@ -56,13 +56,15 @@ public class EzyCommunitySearchTest {
         AppiumBy.accessibilityId("Home");
 
     private final By searchIconButton = By.xpath(
-        "//android.widget.Button[@content-desc='Sort']/preceding-sibling::*[@clickable='true'][1]" +
+        "//android.widget.Button[@content-desc='Sort']/preceding-sibling::*[1]" +
         " | //android.view.View[@content-desc='SQA Team']/following-sibling::*[@clickable='true'][1]"
     );
 
     // Search screen locators
-    private final By searchInputLocator =
-        By.className("android.widget.EditText");
+    private final By searchInputLocator = By.xpath(
+        "//android.widget.EditText[contains(@hint, 'Search') or contains(@bounds, '[244,110]')]" +
+        " | //android.widget.EditText[not(following-sibling::android.widget.EditText) and not(preceding-sibling::android.widget.EditText)]"
+    );
 
     private final By clearButtonLocator = By.xpath(
         "//android.widget.EditText/following-sibling::*[@clickable='true'][1]"
@@ -244,26 +246,41 @@ public class EzyCommunitySearchTest {
     public void prepareSearchScreen() {
         try {
             ensureAppRunningAndOpen();
-            Thread.sleep(500);
+            Thread.sleep(300);
 
-            // If not on search screen, navigate into it
-            if (!isVisible(searchInputLocator)) {
-                // If on login screen for some reason, re-login
-                if (isLoginScreenVisible()) {
-                    ensureLoggedIn();
-                }
-
-                WebElement searchBtn = wait.until(
-                    ExpectedConditions.elementToBeClickable(searchIconButton)
-                );
-                searchBtn.click();
-                System.out.println("Tapped Search icon from Dashboard.");
+            if (isLoginScreenVisible()) {
+                ensureLoggedIn();
             }
 
-            // Ensure search input is visible and clean
-            WebElement input = wait.until(
-                ExpectedConditions.visibilityOfElementLocated(searchInputLocator)
-            );
+            // Retry entering search screen up to 3 times if not already visible
+            int attempts = 0;
+            while (!isVisible(searchInputLocator) && attempts < 3) {
+                attempts++;
+                System.out.println("Navigating to Search screen (attempt " + attempts + ")...");
+                try {
+                    List<WebElement> btns = driver.findElements(searchIconButton);
+                    if (!btns.isEmpty()) {
+                        btns.get(0).click();
+                    } else {
+                        // Direct coordinate tap on search icon [828,84][933,189]
+                        new org.openqa.selenium.interactions.Actions(driver)
+                            .moveToLocation(880, 136)
+                            .click()
+                            .perform();
+                    }
+                } catch (Exception e) {
+                    try {
+                        new org.openqa.selenium.interactions.Actions(driver)
+                            .moveToLocation(880, 136)
+                            .click()
+                            .perform();
+                    } catch (Exception ignored) {}
+                }
+                try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
+            }
+
+            WebDriverWait readyWait = new WebDriverWait(driver, Duration.ofSeconds(8));
+            readyWait.until(ExpectedConditions.visibilityOfElementLocated(searchInputLocator));
             clearSearchInput();
             System.out.println("Search screen is ready for attack.");
 
@@ -275,22 +292,22 @@ public class EzyCommunitySearchTest {
     private void clearSearchInput() {
         try {
             List<WebElement> clearBtns = driver.findElements(clearButtonLocator);
-            if (!clearBtns.isEmpty()) {
-                for (WebElement btn : clearBtns) {
-                    try {
-                        if (btn.isDisplayed()) {
-                            btn.click();
-                            Thread.sleep(300);
-                            break;
-                        }
-                    } catch (Exception ignored) {}
-                }
+            for (WebElement btn : clearBtns) {
+                try {
+                    if (btn.isDisplayed()) {
+                        btn.click();
+                        Thread.sleep(300);
+                        break;
+                    }
+                } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
 
         try {
-            WebElement input = driver.findElement(searchInputLocator);
-            input.clear();
+            List<WebElement> inputs = driver.findElements(searchInputLocator);
+            if (!inputs.isEmpty()) {
+                inputs.get(0).clear();
+            }
         } catch (Exception ignored) {}
     }
 
@@ -386,12 +403,12 @@ public class EzyCommunitySearchTest {
         System.out.println("Payload:   " + payload);
         System.out.println("Purpose:   " + description);
 
+        clearSearchInput();
+
         WebElement input = wait.until(
             ExpectedConditions.elementToBeClickable(searchInputLocator)
         );
-
         input.click();
-        clearSearchInput();
 
         if (!payload.isEmpty()) {
             input.sendKeys(payload);
@@ -444,11 +461,12 @@ public class EzyCommunitySearchTest {
         System.out.println("----------------------------------------------------------------");
         System.out.println("Executing: TC-SEC-15 Rapid Debounce & Concurrency Hammering");
 
-        WebElement input = wait.until(ExpectedConditions.elementToBeClickable(searchInputLocator));
+        clearSearchInput();
         String[] hammerPayloads = {"a", "ab", "abc", "abcd", "abcde", "test", "' OR 1=1", "🔥"};
 
         for (String q : hammerPayloads) {
             try {
+                WebElement input = driver.findElement(searchInputLocator);
                 input.clear();
                 input.sendKeys(q);
                 Thread.sleep(150); // Intentionally fast to stress debounce
@@ -467,9 +485,9 @@ public class EzyCommunitySearchTest {
         System.out.println("----------------------------------------------------------------");
         System.out.println("Executing: TC-SEC-16 Clear Button & Screen Reset");
 
+        clearSearchInput();
         WebElement input = wait.until(ExpectedConditions.elementToBeClickable(searchInputLocator));
         input.click();
-        clearSearchInput();
         input.sendKeys("TemporaryAttackPayload");
 
         try {
