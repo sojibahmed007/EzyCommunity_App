@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * ============================================================================
- * CLASS: EzyCommunityTest
+ * CLASS: EzyCommunityLogIn
  * ============================================================================
  * PURPOSE:
  * Comprehensive, Data-Driven Authentication & Session Test Suite for the 
@@ -46,7 +46,7 @@ import java.util.List;
  *   run as fast as possible while remaining 100% stable.
  * ============================================================================
  */
-public class EzyCommunityTest {
+public class EzyCommunityLogIn {
 
     // ------------------------------------------------------------------------
     // CORE DRIVER & WAIT INSTANCES
@@ -174,7 +174,7 @@ public class EzyCommunityTest {
         // Step 4: Create a 20-second explicit wait instance for dynamic synchronization
         wait = new WebDriverWait(driver, Duration.ofSeconds(20));
 
-        System.out.println("EzyCommunityTest: Appium session started successfully.");
+        System.out.println("EzyCommunityLogIn: Appium session started successfully.");
     }
 
     // ========================================================================
@@ -635,7 +635,7 @@ public class EzyCommunityTest {
     public void tearDown() {
         if (driver != null) {
             driver.quit();
-            System.out.println("EzyCommunityTest: Appium session closed successfully.");
+            System.out.println("EzyCommunityLogIn: Appium session closed successfully.");
         }
     }
 }

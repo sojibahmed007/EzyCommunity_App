@@ -36,8 +36,10 @@ EzyCommuntiyAutomation/
 ├── src/
 │   └── test/
 │       └── java/
-│           ├── EzyCommunityTest.java           # Core Login Suite & Logout Locators
-│           └── EzyCommunitySearchTest.java     # Critical Security & Search Attack Suite
+│           ├── EzyCommunityLogIn.java          # Core Login Suite & Logout Locators
+│           ├── EzyCommunitySearchTest.java     # Critical Security & Search Attack Suite
+│           └── EzyCommunityEditProfileCheck.java # Edit Profile & Username Change Flow
+├── scripts/                                    # Real-time Screen Inspector & Live Tracker
 ├── target/                                     # Build outputs & Surefire reports
 ├── .gitignore                                  # Git exclusion rules
 ├── Pom.xml                                     # Maven dependencies & plugins
@@ -123,15 +125,18 @@ $env:TEST_EMAIL="testerone@imti.online"; $env:TEST_PASSWORD="#Ab123456"; mvn tes
 Run a specific test suite:
 ```powershell
 # Run Authentication Test Suite (16 scenarios)
-mvn test -Dtest=EzyCommunityTest
+mvn test -Dtest=EzyCommunityLogIn
 
 # Run Critical Search Security & Break Test Suite (16 scenarios)
 mvn test -Dtest=EzyCommunitySearchTest
+
+# Run Edit Profile Automation Flow
+mvn test -Dtest=EzyCommunityEditProfileCheck
 ```
 
 ---
 
-## 🧪 Test Case Coverage: Authentication Suite (`EzyCommunityTest`)
+## 🧪 Test Case Coverage: Authentication Suite (`EzyCommunityLogIn`)
 
 The authentication test suite executes 16 automated scenarios using TestNG `@DataProvider`:
 
