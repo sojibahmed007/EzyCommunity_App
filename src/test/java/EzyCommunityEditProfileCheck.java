@@ -17,72 +17,158 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * Automated End-to-End Flow for EzyCommunity Edit Profile & Username Change.
- * File: EzyCommunityEditProfileCheck.java
+ * ============================================================================
+ * CLASS: EzyCommunityEditProfileCheck
+ * ============================================================================
+ * PURPOSE:
+ * Automated End-to-End User Journey for "Edit Profile & Change Username" 
+ * in the EzyCommunity Android Mobile Application.
+ *
+ * WHAT THIS AUTOMATION FLOW DOES:
+ * 1. Step 1 (Open Drawer): Taps Profile Avatar on the Home Dashboard.
+ * 2. Step 2 (Navigate): Clicks "Edit Profile" from the side drawer menu.
+ * 3. Step 3 (Identity Info): Updates First Name, Last Name, and Display Name.
+ * 4. Step 4 (Username Sub-Screen):
+ *    - Taps the Username row (@tester-a).
+ *    - Navigates to dedicated Username screen.
+ *    - Dynamically generates a new unique username (e.g. tester-a425).
+ *    - Validates the green "@username is available." live status badge.
+ *    - Saves and automatically returns to Edit Profile.
+ * 5. Step 5 (Bio): Updates About You / Bio description.
+ * 6. Step 6 (Social Links & Location):
+ *    - Performs a W3C touch gesture swipe to scroll down the form.
+ *    - Updates Location, Website, Twitter (X), and LinkedIn fields.
+ * 7. Step 7 (Save & Complete):
+ *    - Clicks "Save Changes" button.
+ *    - Asserts the app remains healthy and returns to Dashboard.
+ *
+ * KEY AUTOMATION TECHNIQUES FOR BEGINNERS:
+ * - Label-Based XPath Matching: In Flutter, input fields do not have unique IDs. 
+ *   We locate the preceding label text (e.g. "First Name") and select the 
+ *   following-sibling EditText!
+ * - W3C Touch Scrolling: Uses modern Selenium Actions API (moveToLocation -> 
+ *   clickAndHold -> moveToLocation -> release) to swipe on touchscreens.
+ * - Dynamic Data Generation: Appends random numbers to usernames so tests 
+ *   can be executed repeatedly without failing due to "Username already taken".
+ * ============================================================================
  */
 public class EzyCommunityEditProfileCheck {
 
+    // ------------------------------------------------------------------------
+    // CORE DRIVER & WAIT INSTANCES
+    // ------------------------------------------------------------------------
     private AndroidDriver driver;
     private WebDriverWait wait;
 
     private String validEmail;
     private String validPassword;
 
-    // Login screen locators
+    // ------------------------------------------------------------------------
+    // LOGIN SCREEN LOCATORS
+    // ------------------------------------------------------------------------
     private final By signInButton = AppiumBy.accessibilityId("Sign In");
     private final By editTextLocator = By.className("android.widget.EditText");
     private final By checkBoxesLocator = By.className("android.widget.CheckBox");
-    private final By appLauncherIcon = By.xpath("//*[@content-desc='EzyCommunity' or @text='EzyCommunity']");
+    private final By appLauncherIcon = By.xpath(
+        "//*[@content-desc='EzyCommunity' or @text='EzyCommunity']"
+    );
 
-    // Dashboard locators
+    // ------------------------------------------------------------------------
+    // DASHBOARD & DRAWER LOCATORS
+    // ------------------------------------------------------------------------
+    // Community name header on dashboard
     private final By teamName = AppiumBy.accessibilityId("SQA Team");
+
+    /**
+     * Profile Avatar on Dashboard:
+     * Positioned at top-left [13,92][134,181], preceding "SQA Team".
+     */
     private final By profileAvatar = By.xpath(
         "//android.view.View[@content-desc='SQA Team']/preceding-sibling::*[@clickable='true'][1]" +
         " | //android.view.View[@bounds='[13,92][134,181]']"
     );
 
-    // Profile Drawer locators
+    // "Edit Profile" menu item in the slide-out drawer
     private final By editProfileMenu = AppiumBy.accessibilityId("Edit Profile");
+
+    // Drawer header indicator ("SETTINGS")
     private final By settingsHeader = AppiumBy.accessibilityId("SETTINGS");
 
+    // ------------------------------------------------------------------------
+    // EDIT PROFILE SCREEN LOCATORS (Label-Based Following-Sibling Strategy)
+    // ------------------------------------------------------------------------
+    /**
+     * Edit Profile Screen Header:
+     * Disambiguated from the drawer menu item by checking bounds [147,110] or "Change Cover".
+     */
     private final By editProfileHeader = By.xpath(
         "//android.view.View[@content-desc='Edit Profile' and contains(@bounds, '[147,110]')]" +
         " | //*[contains(@content-desc, 'Change Cover')]"
     );
-    private final By firstNameInput = By.xpath("//android.view.View[@content-desc='First Name']/following-sibling::android.widget.EditText[1]");
-    private final By lastNameInput = By.xpath("//android.view.View[@content-desc='Last Name']/following-sibling::android.widget.EditText[1]");
-    private final By displayNameInput = By.xpath("//android.view.View[@content-desc='Display Name']/following-sibling::android.widget.EditText[1]");
-    private final By usernameRow = By.xpath("//android.view.View[@content-desc='Username']/following-sibling::*[@clickable='true'][1]");
+
+    // First Name field: EditText directly following the 'First Name' label
+    private final By firstNameInput = By.xpath(
+        "//android.view.View[@content-desc='First Name']/following-sibling::android.widget.EditText[1]"
+    );
+
+    // Last Name field: EditText directly following the 'Last Name' label
+    private final By lastNameInput = By.xpath(
+        "//android.view.View[@content-desc='Last Name']/following-sibling::android.widget.EditText[1]"
+    );
+
+    // Display Name field: EditText directly following the 'Display Name' label
+    private final By displayNameInput = By.xpath(
+        "//android.view.View[@content-desc='Display Name']/following-sibling::android.widget.EditText[1]"
+    );
+
+    // Username row button: Clickable row that navigates to the dedicated Username sub-screen
+    private final By usernameRow = By.xpath(
+        "//android.view.View[@content-desc='Username']/following-sibling::*[@clickable='true'][1]"
+    );
+
+    // About You / Bio field
     private final By bioInput = By.xpath(
         "//android.view.View[@content-desc='About You']/following-sibling::android.widget.EditText[1]" +
         " | //android.widget.EditText[contains(@hint, 'Tell us about yourself')]"
     );
 
-    // Social Links & Location
+    // ------------------------------------------------------------------------
+    // SOCIAL LINKS & LOCATION LOCATORS
+    // ------------------------------------------------------------------------
     private final By locationInput = By.xpath(
         "//android.view.View[@content-desc='Location']/following-sibling::android.widget.EditText[1]" +
         " | //android.widget.EditText[contains(@hint, 'San Francisco')]"
     );
+
     private final By websiteInput = By.xpath(
         "//android.view.View[@content-desc='Website']/following-sibling::android.widget.EditText[1]" +
         " | //android.widget.EditText[contains(@hint, 'yourwebsite.com')]"
     );
+
     private final By twitterInput = By.xpath(
         "//android.view.View[@content-desc='Twitter']/following-sibling::android.widget.EditText[1]" +
         " | //android.widget.EditText[contains(@hint, '@username')]"
     );
+
     private final By linkedInInput = By.xpath(
         "//android.view.View[@content-desc='LinkedIn']/following-sibling::android.widget.EditText[1]" +
         " | //android.widget.EditText[contains(@hint, 'linkedin.com/in/username')]"
     );
+
+    // "Save Changes" button at the bottom of the Edit Profile form
     private final By saveChangesBtn = AppiumBy.accessibilityId("Save Changes");
 
-    // Username Sub-Screen locators
+    // ------------------------------------------------------------------------
+    // USERNAME SUB-SCREEN LOCATORS
+    // ------------------------------------------------------------------------
     private final By usernameScreenHeader = By.xpath("//android.view.View[@content-desc='Username']");
     private final By usernameInputField = By.className("android.widget.EditText");
     private final By usernameAvailableMsg = By.xpath("//*[contains(@content-desc, 'is available')]");
     private final By saveUsernameBtn = AppiumBy.accessibilityId("Save");
 
+    // ========================================================================
+    // SETUP & INITIALIZATION (@BeforeClass)
+    // ========================================================================
     @BeforeClass
     public void setUp() throws Exception {
         validEmail = System.getenv("TEST_EMAIL");
@@ -125,11 +211,15 @@ public class EzyCommunityEditProfileCheck {
         } catch (Exception ignored) {}
     }
 
+    /**
+     * ensureLoggedIn():
+     * Ensures an authenticated session is active before testing Edit Profile.
+     */
     private void ensureLoggedIn() {
         try {
             Thread.sleep(1000);
             if (isLoggedIn() && !isLoginScreenVisible()) {
-                System.out.println("User is already logged in.");
+                System.out.println("User is already logged in (authenticated screen detected).");
                 return;
             }
 
@@ -188,6 +278,11 @@ public class EzyCommunityEditProfileCheck {
         }
     }
 
+    /**
+     * isLoggedIn():
+     * Self-healing check that recognizes any authenticated view: Dashboard, 
+     * Profile Drawer, or Edit Profile screen.
+     */
     private boolean isLoggedIn() {
         return isVisible(teamName)
             || isVisible(profileAvatar)
@@ -213,6 +308,14 @@ public class EzyCommunityEditProfileCheck {
         return false;
     }
 
+    /**
+     * clearAndType(element, text):
+     * Helper to reliably input text into Flutter text fields:
+     * 1. Clicks to focus the field.
+     * 2. Clears any existing text.
+     * 3. Sends new text.
+     * 4. Closes soft keyboard to prevent UI obstruction.
+     */
     private void clearAndType(WebElement element, String text) {
         try {
             element.click();
@@ -225,6 +328,12 @@ public class EzyCommunityEditProfileCheck {
         }
     }
 
+    /**
+     * scrollDown():
+     * W3C Actions Gesture:
+     * Simulates swiping upward from coordinate (540, 1800) to (540, 600) to scroll down 
+     * the Edit Profile form and reveal social links & Save button.
+     */
     private void scrollDown() {
         try {
             new org.openqa.selenium.interactions.Actions(driver)
@@ -237,6 +346,9 @@ public class EzyCommunityEditProfileCheck {
         } catch (Exception ignored) {}
     }
 
+    // ========================================================================
+    // END-TO-END FLOW EXECUTION (@Test)
+    // ========================================================================
     @Test
     public void testAutomateEditProfileFlow() throws InterruptedException {
         System.out.println("==============================================================");
@@ -313,7 +425,7 @@ public class EzyCommunityEditProfileCheck {
         Thread.sleep(1500);
         wait.until(ExpectedConditions.visibilityOfElementLocated(usernameInputField));
 
-        // Generate dynamic username to avoid collisions: tester-a + 3 random digits
+        // Generate dynamic unique username to prevent duplicate name errors
         String newUsername = "tester-a" + (int)(Math.random() * 900 + 100);
         System.out.println("  - Entering new username: " + newUsername);
 
@@ -403,7 +515,7 @@ public class EzyCommunityEditProfileCheck {
             System.out.println("  - Tapped 'Save Changes' via coordinates fallback.");
         }
 
-        // Wait for save process to complete and return to Dashboard or Drawer
+        // Wait for save process to complete
         Thread.sleep(2500);
 
         // Verify App is alive and healthy
@@ -418,6 +530,9 @@ public class EzyCommunityEditProfileCheck {
         System.out.println("==============================================================");
     }
 
+    // ========================================================================
+    // TEARDOWN (@AfterClass)
+    // ========================================================================
     @AfterClass(alwaysRun = true)
     public void tearDown() {
         if (driver != null) {
@@ -426,4 +541,3 @@ public class EzyCommunityEditProfileCheck {
         }
     }
 }
-

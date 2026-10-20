@@ -1,13 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
+    <!-- 
+      ========================================================================
+      1. MAVEN PROJECT METADATA
+      ========================================================================
+      - modelVersion: 4.0.0 is the standard POM format version.
+      - groupId: The unique identifier of your organization or project package.
+      - artifactId: The name of this automation project module.
+      - version: Current build version (1.0-SNAPSHOT indicates active development).
+    -->
     <modelVersion>4.0.0</modelVersion>
-
     <groupId>com.ezycommunity</groupId>
     <artifactId>mobile-automation</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <!-- 
+      ========================================================================
+      2. BUILD PROPERTIES & GLOBAL CONFIGURATION
+      ========================================================================
+      - maven.compiler.source / target: Configured to Java 17 (Modern LTS version).
+      - project.build.sourceEncoding: UTF-8 ensures Unicode & Emoji characters in 
+        test payloads compile without encoding errors across Windows/Mac/Linux.
+      - selenium.version: Centralized Selenium version variable used across dependencies.
+    -->
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -15,6 +33,13 @@
         <selenium.version>4.34.0</selenium.version>
     </properties>
 
+    <!-- 
+      ========================================================================
+      3. DEPENDENCY MANAGEMENT (BOM - Bill of Materials)
+      ========================================================================
+      - selenium-bom: Guarantees that all Selenium sub-modules (remote, support, etc.)
+        use the exact same matching version, preventing classpath conflicts.
+    -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -27,19 +52,39 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- 
+      ========================================================================
+      4. PROJECT DEPENDENCIES
+      ========================================================================
+    -->
     <dependencies>
+        <!-- 
+          Appium Java Client:
+          Provides AndroidDriver, AppiumBy (e.g. accessibilityId), and mobile-specific 
+          gestures/capabilities to interact with Android UiAutomator2 server.
+        -->
         <dependency>
             <groupId>io.appium</groupId>
             <artifactId>java-client</artifactId>
             <version>9.5.0</version>
         </dependency>
 
+        <!-- 
+          Selenium Java:
+          Underlying WebDriver API providing By, WebElement, WebDriverWait, 
+          ExpectedConditions, Actions, and browser/app automation primitives.
+        -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${selenium.version}</version>
         </dependency>
 
+        <!-- 
+          TestNG (Test Next Generation):
+          The test execution framework providing annotations (@Test, @BeforeClass, 
+          @BeforeMethod, @DataProvider), assertions (Assert.assertEquals), and parallel execution.
+        -->
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
@@ -48,8 +93,19 @@
         </dependency>
     </dependencies>
 
+    <!-- 
+      ========================================================================
+      5. BUILD PLUGINS
+      ========================================================================
+    -->
     <build>
         <plugins>
+            <!-- 
+              Maven Surefire Plugin:
+              Responsible for discovering and running TestNG test classes during 
+              the 'mvn test' lifecycle phase. Also generates HTML and XML test reports 
+              in the 'target/surefire-reports/' directory.
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
