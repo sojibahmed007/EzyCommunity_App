@@ -22,137 +22,62 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.List;
 
-/**
- * ============================================================================
- * CLASS: EzyCommunitySearchTest
- * ============================================================================
- * PURPOSE:
- * Critical Security, Fuzzing, Stress & Boundary Test Suite for the Community 
- * Search Feature in EzyCommunity Android App.
- *
- * WHY MOBILE SEARCH ATTACK & FUZZ TESTING IS IMPORTANT:
- * Mobile search bars communicate with backend search APIs and databases.
- * If inputs are not properly sanitized and validated:
- * 1. SQL Injection (SQLi): Malicious input could alter database queries or leak data.
- * 2. Cross-Site Scripting (XSS): Injected HTML/JS could execute in webviews or client UI.
- * 3. Server-Side Template Injection (SSTI): Expressions like {{7*7}} could execute on servers.
- * 4. Buffer Overflow & Memory ANR: Oversized inputs (500+ chars) could crash the app or freeze UI.
- * 5. Unicode / RTL / Symbol Bombs: Complex multi-byte characters could break Flutter text renderers.
- * 6. Concurrency / Debounce Race Conditions: Rapid typing could cause out-of-order API responses.
- *
- * FULL AUTOMATED FLOW:
- * 1. Launch App -> Auto-Login (if needed) -> Land on Dashboard.
- * 2. Seamlessly navigate into Search screen before each test.
- * 3. Inject attack payload -> Trigger Search via Android ENTER key.
- * 4. Verify 3 Critical Security Assertions:
- *    - Assertion 1: App did not crash (State remains RUNNING_IN_FOREGROUND).
- *    - Assertion 2: Search UI remains functional and responsive.
- *    - Assertion 3: No internal database error or backend stack trace is exposed in the UI.
- * ============================================================================
- */
+// EzyCommunity সার্চ ফিচারের সিকিউরিটি, স্ট্রেস ও ফাজিং টেস্ট স্যুট
 public class EzyCommunitySearchTest {
 
-    // ------------------------------------------------------------------------
-    // DRIVER & SYNCHRONIZATION INSTANCES
-    // ------------------------------------------------------------------------
     private AndroidDriver driver;
     private WebDriverWait wait;
 
     private String validEmail;
     private String validPassword;
 
-    // ------------------------------------------------------------------------
-    // LOGIN & LAUNCHER LOCATORS
-    // ------------------------------------------------------------------------
-    // Button to submit login form
+    // --- লগইন ও ড্যাশবোর্ড লোকেটরসমূহ ---
     private final By signInButton = AppiumBy.accessibilityId("Sign In");
-
-    // Generic input field locator
     private final By editTextLocator = By.className("android.widget.EditText");
-
-    // Agreement and remember me checkboxes
     private final By checkBoxesLocator = By.className("android.widget.CheckBox");
-
-    // Android launcher icon (used to restore foreground state if backgrounded)
-    private final By appLauncherIcon = By.xpath(
-        "//*[@content-desc='EzyCommunity' or @text='EzyCommunity']"
-    );
-
-    // ------------------------------------------------------------------------
-    // DASHBOARD LOCATORS
-    // ------------------------------------------------------------------------
-    // Header title for the logged-in community
+    private final By appLauncherIcon = By.xpath("//*[@content-desc='EzyCommunity' or @text='EzyCommunity']");
     private final By teamName = AppiumBy.accessibilityId("SQA Team");
-
-    // Bottom navigation bar Home icon
     private final By homeIcon = AppiumBy.accessibilityId("Home");
 
-    /**
-     * Search Icon Button (on Dashboard Top Bar):
-     * In the Flutter header, the search icon sits immediately to the left of the 'Sort' button.
-     * We use XPath 'preceding-sibling::*[1]' relative to 'Sort', or 'following-sibling' relative to 'SQA Team'.
-     */
+    // ড্যাশবোর্ডের সার্চ আইকন বাটন (Sort বাটনের আগের এলিমেন্ট)
     private final By searchIconButton = By.xpath(
         "//android.widget.Button[@content-desc='Sort']/preceding-sibling::*[1]" +
         " | //android.view.View[@content-desc='SQA Team']/following-sibling::*[@clickable='true'][1]"
     );
 
-    // ------------------------------------------------------------------------
-    // SEARCH SCREEN LOCATORS
-    // ------------------------------------------------------------------------
-    /**
-     * Search Input Field:
-     * In Flutter, the search input has hint="Search posts, comments, people, and more" 
-     * and bounds starting at [244,110].
-     * We explicitly check for 'Search' in hint or bounds to ensure it NEVER accidentally 
-     * matches the login screen's email/password fields!
-     */
+    // --- সার্চ স্ক্রিন লোকেটরসমূহ ---
+    // সার্চ ইনপুট ফিল্ড (হিন্ট ও বাউন্ডস দিয়ে নিশ্চিত করা যাতে লগইন ফিল্ডের সাথে কনফ্লিক্ট না করে)
     private final By searchInputLocator = By.xpath(
         "//android.widget.EditText[contains(@hint, 'Search') or contains(@bounds, '[244,110]')]" +
         " | //android.widget.EditText[not(following-sibling::android.widget.EditText) and not(preceding-sibling::android.widget.EditText)]"
     );
 
-    /**
-     * Clear Button (X):
-     * Appears as a clickable sibling immediately following the search input when text is entered.
-     */
+    // সার্চ ইনপুট ক্লিয়ার বাটন (X)
     private final By clearButtonLocator = By.xpath(
         "//android.widget.EditText/following-sibling::*[@clickable='true'][1]"
     );
 
-    /**
-     * Back Button (<):
-     * Clickable sibling immediately preceding the search input to return to Dashboard.
-     */
+    // সার্চ স্ক্রিন থেকে ফিরে আসার ব্যাক বাটন
     private final By backButtonLocator = By.xpath(
         "//android.widget.EditText/preceding-sibling::*[@clickable='true'][1]"
     );
 
-    // "RECENT SEARCHES" section header on initial empty search screen
+    // সাম্প্রতিক সার্চ সেকশন হেডার
     private final By recentSearchesHeader = By.xpath(
         "//*[contains(@content-desc, 'RECENT SEARCHES')]"
     );
 
-    // Graceful empty state indicator ("No results for ...")
+    // কোনো রেজাল্ট না পেলে যে মেসেজ দেখায়
     private final By noResultsLocator = By.xpath(
         "//*[contains(@content-desc, 'No results for') or contains(@content-desc, 'Try different keywords')]"
     );
 
-    // Results header indicating search returned matches ("Search results for ...")
+    // সার্চ রেজাল্ট পাওয়ার হেডার
     private final By resultsHeaderLocator = By.xpath(
         "//*[contains(@content-desc, 'Search results for')]"
     );
 
-    // ========================================================================
-    // SETUP LIFECYCLE (@BeforeClass)
-    // ========================================================================
-    /**
-     * setUp(): Runs ONCE before test execution begins.
-     * PURPOSE:
-     * 1. Loads credentials from Environment Variables (with fallback defaults).
-     * 2. Starts Appium AndroidDriver session.
-     * 3. Guarantees the app is active and user is logged in before tests start.
-     */
+    // টেস্ট ক্লাস শুরুর আগে ড্রাইভার ইনিশিয়ালাইজেশন ও লগইন সম্পন্ন করা
     @BeforeClass
     public void setUp() throws Exception {
         validEmail = System.getenv("TEST_EMAIL");
@@ -174,25 +99,14 @@ public class EzyCommunitySearchTest {
         options.setAppActivity(".MainActivity");
         options.setNoReset(true);
 
-        driver = new AndroidDriver(
-            new URL("http://127.0.0.1:4723"),
-            options
-        );
-
+        driver = new AndroidDriver(new URL("http://127.0.0.1:4723"), options);
         wait = new WebDriverWait(driver, Duration.ofSeconds(20));
         System.out.println("EzyCommunitySearchTest: Appium session started.");
 
-        // Step 1: Ensure app is running and brought to foreground
         ensureAppRunningAndOpen();
-
-        // Step 2: Ensure user is logged in
         ensureLoggedIn();
     }
 
-    /**
-     * ensureAppRunningAndOpen():
-     * Ensures the app package is active in the foreground.
-     */
     private void ensureAppRunningAndOpen() {
         try {
             driver.activateApp("com.ezycommunity.android");
@@ -202,16 +116,11 @@ public class EzyCommunitySearchTest {
             List<WebElement> launcherIcons = driver.findElements(appLauncherIcon);
             if (!launcherIcons.isEmpty() && launcherIcons.get(0).isDisplayed()) {
                 launcherIcons.get(0).click();
-                System.out.println("Clicked EzyCommunity icon on Android launcher.");
             }
         } catch (Exception ignored) {}
     }
 
-    /**
-     * ensureLoggedIn():
-     * Checks if an authenticated session exists. If on login screen, automatically 
-     * logs in so the search tests can proceed without manual intervention.
-     */
+    // লগইন স্ক্রিনে থাকলে স্বয়ংক্রিয়ভাবে লগইন করে ড্যাশবোর্ডে নিয়ে যাবে
     private void ensureLoggedIn() {
         try {
             Thread.sleep(1000);
@@ -220,17 +129,13 @@ public class EzyCommunitySearchTest {
                 return;
             }
 
-            if (!isLoginScreenVisible()) {
-                if (isLoggedIn()) {
-                    System.out.println("Authenticated screen detected.");
-                    return;
-                }
+            if (!isLoginScreenVisible() && isLoggedIn()) {
+                return;
             }
 
             System.out.println("Performing automatic login...");
             wait.until(ExpectedConditions.visibilityOfElementLocated(signInButton));
 
-            // Enter credentials
             List<WebElement> fields = driver.findElements(editTextLocator);
             Assert.assertTrue(fields.size() >= 2, "Expected email and password fields");
 
@@ -238,7 +143,6 @@ public class EzyCommunitySearchTest {
             emailInput.click();
             emailInput.clear();
             emailInput.sendKeys(validEmail);
-
             try { driver.hideKeyboard(); } catch (Exception ignored) {}
 
             fields = driver.findElements(editTextLocator);
@@ -246,15 +150,12 @@ public class EzyCommunitySearchTest {
             passwordInput.click();
             passwordInput.clear();
             passwordInput.sendKeys(validPassword);
-
             try { driver.hideKeyboard(); } catch (Exception ignored) {}
             Thread.sleep(800);
 
-            // Accept Remember Me & Terms checkboxes
             acceptTermsAndRememberMe();
             Thread.sleep(500);
 
-            // Click Sign In with Flutter unfocus-retry logic
             clickSignIn();
 
             WebDriverWait loginWait = new WebDriverWait(driver, Duration.ofSeconds(25));
@@ -287,7 +188,6 @@ public class EzyCommunitySearchTest {
         try {
             Thread.sleep(1200);
             if (!isLoggedIn() && isLoginScreenVisible()) {
-                System.out.println("Retrying Sign In click after unfocus...");
                 try {
                     WebElement btn = driver.findElement(signInButton);
                     btn.click();
@@ -308,8 +208,7 @@ public class EzyCommunitySearchTest {
             List<WebElement> checkBoxes = driver.findElements(checkBoxesLocator);
             for (WebElement cb : checkBoxes) {
                 try {
-                    String checkedAttr = cb.getAttribute("checked");
-                    if (!"true".equalsIgnoreCase(checkedAttr)) {
+                    if (!"true".equalsIgnoreCase(cb.getAttribute("checked"))) {
                         cb.click();
                     }
                 } catch (Exception ignored) {}
@@ -317,18 +216,7 @@ public class EzyCommunitySearchTest {
         } catch (Exception ignored) {}
     }
 
-    // ========================================================================
-    // SEARCH SCREEN PREPARATION (@BeforeMethod)
-    // ========================================================================
-    /**
-     * prepareSearchScreen(): Runs BEFORE EACH test case.
-     * PURPOSE:
-     * Guarantees the search screen is active and the search input is cleared 
-     * before running any payload.
-     * Includes a self-healing retry loop:
-     * - If not on search screen, taps search icon (with coordinate fallback at 880, 136).
-     * - Cleans existing search text using clearSearchInput().
-     */
+    // প্রতি টেস্টের আগে সার্চ স্ক্রিনে নেভিগেট করা ও ইনপুট বক্স প্রস্তুত করা
     @BeforeMethod
     public void prepareSearchScreen() {
         try {
@@ -339,7 +227,7 @@ public class EzyCommunitySearchTest {
                 ensureLoggedIn();
             }
 
-            // Retry entering search screen up to 3 times if not already visible
+            // সার্চ স্ক্রিনে না থাকলে সার্চ আইকনে ক্লিক করে প্রবেশ করবে
             int attempts = 0;
             while (!isVisible(searchInputLocator) && attempts < 3) {
                 attempts++;
@@ -349,7 +237,7 @@ public class EzyCommunitySearchTest {
                     if (!btns.isEmpty()) {
                         btns.get(0).click();
                     } else {
-                        // Direct coordinate tap on search icon [828,84][933,189] (center: 880, 136)
+                        // সার্চ আইকনের কোঅর্ডিনেট ফলব্যাক [828,84][933,189]
                         new org.openqa.selenium.interactions.Actions(driver)
                             .moveToLocation(880, 136)
                             .click()
@@ -376,12 +264,7 @@ public class EzyCommunitySearchTest {
         }
     }
 
-    /**
-     * clearSearchInput():
-     * Resets the search input field.
-     * 1. Clicks the Clear button (X) if displayed.
-     * 2. Calls clear() on the search EditText.
-     */
+    // সার্চ ইনপুট ফিল্ড ও ক্লিয়ার বাটন রিসেট করা
     private void clearSearchInput() {
         try {
             List<WebElement> clearBtns = driver.findElements(clearButtonLocator);
@@ -418,12 +301,7 @@ public class EzyCommunitySearchTest {
         return false;
     }
 
-    /**
-     * verifyAppHealthy():
-     * CRITICAL ASSERTION:
-     * Confirms the Android app has not crashed, closed, or suffered an ANR 
-     * (Application Not Responding) under stress or malicious payloads.
-     */
+    // ক্রিটিক্যাল সিকিউরিটি চেক: অ্যাপ ক্র্যাশ না করে জীবিত আছে কিনা যাচাই
     private void verifyAppHealthy() {
         try {
             String appState = driver.queryAppState("com.ezycommunity.android").toString();
@@ -432,36 +310,19 @@ public class EzyCommunitySearchTest {
                 "App crashed or closed during search attack! Current state: " + appState
             );
         } catch (Exception e) {
-            // If queryAppState unsupported, verify driver is still active
             Assert.assertNotNull(driver.getPageSource(), "App connection lost / crashed!");
         }
     }
 
-    // ========================================================================
-    // CRITICAL SECURITY & FUZZING ATTACK MATRIX (@DataProvider)
-    // ========================================================================
-    /**
-     * searchAttackCases():
-     * Supplies 14 critical attack vectors and boundary stress scenarios:
-     * 1. Baseline Sanity
-     * 2. SQL Injection (Auth bypass, DROP TABLE, UNION SELECT)
-     * 3. Cross-Site Scripting (Script tags, onerror handlers, iframe JS)
-     * 4. Server-Side Template Injection (SSTI)
-     * 5. Massive Buffer Overflow (500+ character repeating boundary)
-     * 6. Special Symbols & Regex Bombs
-     * 7. Multi-Byte Emojis & Bidirectional RTL Glyphs (﷽)
-     * 8. Null Byte Poisoning (\u0000)
-     * 9. Whitespace & Control Character Flooding
-     * 10. Non-Existent Token Graceful Empty State
-     */
+    // ডেটা প্রোভাইডার: ১৪টি ক্রিটিক্যাল সিকিউরিটি ও স্ট্রেস অ্যাটাক ভেক্টর
     @DataProvider(name = "searchAttackCases")
     public Object[][] searchAttackCases() {
         return new Object[][] {
-            // 1. Baseline Valid Query
+            // ১. বেসলাইন সাধারণ সার্চ
             {"TC-SEC-01 Valid Baseline Query",
                 "test", "Baseline query should return valid search results"},
 
-            // 2. SQL Injection Payloads
+            // ২. এসকিউএল ইনজেকশন (SQLi) পে-লোড
             {"TC-SEC-02 SQLi Auth Bypass Payload",
                 "' OR '1'='1", "SQL injection bypass syntax must not leak data or break app"},
 
@@ -471,7 +332,7 @@ public class EzyCommunitySearchTest {
             {"TC-SEC-04 SQLi Union-Based Extraction",
                 "' UNION SELECT null, username, password FROM users --", "Union SQLi payload must be rejected gracefully"},
 
-            // 3. Cross-Site Scripting (XSS) Payloads
+            // ৩. ক্রস-সাইট স্ক্রিপ্টিং (XSS) পে-লোড
             {"TC-SEC-05 Stored/Reflected XSS Script Tag",
                 "<script>alert('XSS')</script>", "Script tags must be sanitized and rendered as raw text"},
 
@@ -481,45 +342,38 @@ public class EzyCommunitySearchTest {
             {"TC-SEC-07 HTML Iframe & Javascript URI",
                 "<iframe src=\"javascript:alert(1)\"></iframe>", "Iframe HTML injection must be safely escaped"},
 
-            // 4. Server-Side Template Injection (SSTI)
+            // ৪. সার্ভার-সাইড টেমপ্লেট ইনজেকশন (SSTI)
             {"TC-SEC-08 Server-Side Template Injection (SSTI)",
                 "{{7*7}} ${7*7} <%= 7*7 %>", "Template tags should not be evaluated on server or client"},
 
-            // 5. Buffer Overflow / Heavy Length Stress
+            // ৫. বাউন্ডারি ও বাফার স্ট্রেস (৫০০+ ক্যারেক্টার)
             {"TC-SEC-09 Massive Length Boundary Attack (500 Chars)",
                 "CRITICAL_PAYLOAD_FUZZING_TEST_BOUNDARY_OVERFLOW_ATTACK_".repeat(9),
                 "Heavy 500+ character string must not cause memory overflow or ANR"},
 
-            // 6. Special Characters & Symbol Flooding
+            // ৬. স্পেশাল ক্যারেক্টার ও সিম্বল বম্ব
             {"TC-SEC-10 Extreme Special Symbol & Punctuation Bomb",
                 "!@#$%^&*()_+~|}{[]:;?><,./'\"\\", "Complex symbol combinations must not break regex parser"},
 
-            // 7. Unicode, Complex Emojis & RTL Glyphs
+            // ৭. মাল্টি-বাইট ইমোজি ও আরবি RTL ক্যারেক্টার
             {"TC-SEC-11 Complex Multi-Byte Emojis & RTL Characters",
                 "🔥🚀💻👻🎯💥 ﷽ \u202Ereversed\u202C", "Unicode and Bidirectional (RTL) glyphs must render without crash"},
 
-            // 8. Null Byte Injection
+            // ৮. নাল বাইট পয়জনিং
             {"TC-SEC-12 Null Byte Poisoning Attack",
                 "search\u0000admin", "Null byte character should not truncate or corrupt internal buffer"},
 
-            // 9. Whitespace Flooding
+            // ৯. হোয়াইটস্পেস ও কন্ট্রোল ক্যারেক্টার ফ্লাডিং
             {"TC-SEC-13 Whitespace & Control Characters Flooding",
                 "   \t   \n   \r   ", "Only whitespace and control chars should not cause blank screen crash"},
 
-            // 10. Non-Existent String (Graceful Zero Result UI)
+            // ১০. অস্তিত্বহীন টোকেন (গ্রেসফুল এম্পটি স্টেট যাচাই)
             {"TC-SEC-14 Non-Existent Random Query",
                 "__xyz_random_nonexistent_token_99999__", "Non-existent token must display graceful empty state UI"}
         };
     }
 
-    // ========================================================================
-    // ATTACK TEST EXECUTION (@Test)
-    // ========================================================================
-    /**
-     * testSearchAttackVectors():
-     * Injects each attack payload, presses Android ENTER to submit, and asserts 
-     * app resilience across 3 security criteria.
-     */
+    // প্রতিটি অ্যাটাক পে-লোড ইনপুট করে ফলাফল ও অ্যাপের স্থিতিশীলতা যাচাই
     @Test(dataProvider = "searchAttackCases")
     public void testSearchAttackVectors(String testCase, String payload, String description) {
         System.out.println("----------------------------------------------------------------");
@@ -527,18 +381,13 @@ public class EzyCommunitySearchTest {
         System.out.println("Payload:   " + payload);
         System.out.println("Purpose:   " + description);
 
-        // Clear existing input before acquiring element reference to prevent stale references
         clearSearchInput();
 
-        WebElement input = wait.until(
-            ExpectedConditions.elementToBeClickable(searchInputLocator)
-        );
+        WebElement input = wait.until(ExpectedConditions.elementToBeClickable(searchInputLocator));
         input.click();
 
         if (!payload.isEmpty()) {
             input.sendKeys(payload);
-
-            // Trigger search via Android native ENTER key event
             try {
                 driver.pressKey(new KeyEvent(AndroidKey.ENTER));
             } catch (Exception e) {
@@ -546,7 +395,7 @@ public class EzyCommunitySearchTest {
             }
         }
 
-        // Wait up to 6 seconds for live search debounce / API response
+        // সার্চের রেসপন্স বা ডিববাউন্স হওয়া পর্যন্ত অপেক্ষা
         try {
             Thread.sleep(1500);
             WebDriverWait searchWait = new WebDriverWait(driver, Duration.ofSeconds(6));
@@ -555,26 +404,15 @@ public class EzyCommunitySearchTest {
                 || isVisible(noResultsLocator)
                 || isVisible(recentSearchesHeader)
             );
-        } catch (Exception ignored) {
-            // Search might still be debouncing; verify app didn't crash
-        }
+        } catch (Exception ignored) {}
 
-        // --------------------------------------------------------------------
-        // CRITICAL SECURITY ASSERTION 1: App must stay alive and healthy
-        // --------------------------------------------------------------------
+        // সিকিউরিটি অ্যাসারশন ১: অ্যাপ ক্র্যাশ করেনি
         verifyAppHealthy();
 
-        // --------------------------------------------------------------------
-        // CRITICAL SECURITY ASSERTION 2: Search UI remains present and functional
-        // --------------------------------------------------------------------
-        Assert.assertTrue(
-            isVisible(searchInputLocator),
-            testCase + ": Search screen disappeared or crashed!"
-        );
+        // সিকিউরিটি অ্যাসারশন ২: সার্চ ইনপুট এখনো দৃশ্যমান ও কার্যকর আছে
+        Assert.assertTrue(isVisible(searchInputLocator), testCase + ": Search screen disappeared or crashed!");
 
-        // --------------------------------------------------------------------
-        // CRITICAL SECURITY ASSERTION 3: No raw database stack traces in UI
-        // --------------------------------------------------------------------
+        // সিকিউরিটি অ্যাসারশন ৩: পেজ সোর্সে কোনো ডাটাবেজ এরর ফাঁস হয়নি
         String pageSource = driver.getPageSource();
         Assert.assertFalse(
             pageSource.toLowerCase().contains("syntax error in sql") ||
@@ -587,16 +425,7 @@ public class EzyCommunitySearchTest {
         System.out.println(testCase + " PASSED - App handled payload robustly.");
     }
 
-    // ========================================================================
-    // CONCURRENCY & STRESS TEST: RAPID DEBOUNCE HAMMERING
-    // ========================================================================
-    /**
-     * testRapidDebounceHammering():
-     * Simulates a user typing rapid sequential search terms within milliseconds (150ms intervals).
-     * PURPOSE:
-     * Verifies that the client debounce timer and backend search endpoints handle 
-     * out-of-order race conditions without crashing or locking the UI thread.
-     */
+    // দ্রুত টাইপিং টেস্ট: ডিববাউন্স টাইমার ও রেস কন্ডিশন স্ট্রেস টেস্ট
     @Test
     public void testRapidDebounceHammering() {
         System.out.println("----------------------------------------------------------------");
@@ -610,7 +439,7 @@ public class EzyCommunitySearchTest {
                 WebElement input = driver.findElement(searchInputLocator);
                 input.clear();
                 input.sendKeys(q);
-                Thread.sleep(150); // Intentionally fast to stress debounce timing
+                Thread.sleep(150);
             } catch (Exception ignored) {}
         }
 
@@ -621,14 +450,7 @@ public class EzyCommunitySearchTest {
         System.out.println("TC-SEC-15 PASSED - Debounce hammer handled safely.");
     }
 
-    // ========================================================================
-    // UI RESET TEST: CLEAR BUTTON (X) FUNCTIONALITY
-    // ========================================================================
-    /**
-     * testClearButtonFunctionality():
-     * Enters a search query, verifies the Clear button (X) appears, clicks it, 
-     * and asserts the search input is cleanly restored to empty state.
-     */
+    // ক্লিয়ার (X) বাটন টেস্ট: টেক্সট ক্লিয়ার হয়ে সার্চ বক্স রিসেট হয় কিনা যাচাই
     @Test
     public void testClearButtonFunctionality() {
         System.out.println("----------------------------------------------------------------");
@@ -644,14 +466,14 @@ public class EzyCommunitySearchTest {
             Thread.sleep(1500);
         } catch (Exception ignored) {}
 
-        // Locate and click the Clear button (X)
+        // ক্লিয়ার বাটন ক্লিক করা
         List<WebElement> clearBtns = driver.findElements(clearButtonLocator);
         Assert.assertFalse(clearBtns.isEmpty(), "Clear button (X) not found after entering text!");
         clearBtns.get(0).click();
 
         try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
 
-        // Input should now be cleared
+        // ইনপুট বক্সটি রিসেট হয়েছে কিনা অ্যাসার্ট করা
         input = driver.findElement(searchInputLocator);
         String textAfterClear = input.getText();
         Assert.assertTrue(
@@ -663,9 +485,7 @@ public class EzyCommunitySearchTest {
         System.out.println("TC-SEC-16 PASSED - Clear button successfully reset search screen.");
     }
 
-    // ========================================================================
-    // TEARDOWN (@AfterClass)
-    // ========================================================================
+    // টেস্ট শেষে Appium সেশন ক্লোজ করা
     @AfterClass(alwaysRun = true)
     public void tearDown() {
         if (driver != null) {
